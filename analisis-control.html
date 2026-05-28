@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Análisis de Sistemas de Control</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    background: #f4f6fb;
+    color: #1f2937;
+  }
+  header {
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    color: white;
+    padding: 24px 32px;
+  }
+  header h1 { margin: 0 0 6px; font-size: 1.6rem; }
+  header p { margin: 0; opacity: 0.85; font-size: 0.95rem; }
+
+  main { max-width: 1400px; margin: 24px auto; padding: 0 24px; }
+
+  .panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .tf-display {
+    text-align: center;
+    font-size: 1.1rem;
+    margin: 16px 0;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .frac {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    vertical-align: middle;
+    margin: 0 8px;
+  }
+  .frac .num { border-bottom: 2px solid #1f2937; padding: 4px 12px; }
+  .frac .den { padding: 4px 12px; }
+
+  .inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+  small { color: #6b7280; font-size: 0.8rem; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.15s;
+  }
+  button:hover { background: #2563eb; }
+  button.secondary { background: #6b7280; }
+  button.secondary:hover { background: #4b5563; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .plot-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    padding: 16px;
+  }
+  .plot-card h3 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    color: #1f2937;
+  }
+  .plot-card .hint {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-bottom: 8px;
+  }
+  .plot { width: 100%; height: 360px; }
+
+  .error {
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  .info {
+    font-size: 0.85rem;
+    color: #4b5563;
+    margin-top: 12px;
+    padding: 12px;
+    background: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+  }
+
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+  }
+
+  table.analysis {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 0.9rem;
+  }
+  table.analysis th, table.analysis td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+  }
+  table.analysis th {
+    background: #f9fafb;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+  }
+  table.analysis tr:hover { background: #f9fafb; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .stat {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 12px 14px;
+    border-left: 3px solid #3b82f6;
+  }
+  .stat .label { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat .value { font-size: 1.15rem; font-weight: 700; color: #1f2937; margin-top: 2px; font-family: "SF Mono", Menlo, monospace; }
+  .stat.warn { border-left-color: #f59e0b; }
+  .stat.bad  { border-left-color: #dc2626; }
+  .stat.good { border-left-color: #059669; }
+
+  .comp-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  h2 { font-size: 1.2rem; margin: 0 0 12px; }
+  .subhead { font-size: 0.95rem; font-weight: 600; color: #374151; margin: 16px 0 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Análisis de Sistemas de Control</h1>
+  <p>Ingresá una función de transferencia G(s) y obtené Lugar de Raíces, Nyquist y Bode (magnitud y fase).</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2 style="margin-top:0;">Función de transferencia</h2>
+    <div class="inputs">
+      <div>
+        <label for="num">Numerador</label>
+        <input type="text" id="num" value="s+2" placeholder="ej: s+2  ó  1, 2">
+        <small>Expresión (<code>s+2</code>, <code>(s+1)^2</code>) o coeficientes (<code>1 2</code>)</small>
+      </div>
+      <div>
+        <label for="den">Denominador</label>
+        <input type="text" id="den" value="((s+1)^2+1)*(s+4)" placeholder="ej: ((s+1)^2+1)*(s+4)">
+        <small>Soporta <code>+ - * / ^</code>, paréntesis y multiplicación implícita (<code>2s</code>, <code>(s+1)(s+2)</code>)</small>
+      </div>
+    </div>
+
+    <div class="tf-display" id="tfDisplay">G(s) = </div>
+
+    <div class="inputs" style="grid-template-columns: 1fr 1fr 1fr;">
+      <div>
+        <label for="kmax">K máximo (Lugar de raíces)</label>
+        <input type="number" id="kmax" value="100" min="0.1" step="0.1">
+      </div>
+      <div>
+        <label for="wmin">ω mínimo (década, log₁₀)</label>
+        <input type="number" id="wmin" value="-2" step="1">
+      </div>
+      <div>
+        <label for="wmax">ω máximo (década, log₁₀)</label>
+        <input type="number" id="wmax" value="3" step="1">
+      </div>
+    </div>
+
+    <div class="controls">
+      <button onclick="computeAll()">Calcular y graficar</button>
+      <button class="secondary" onclick="loadExample(1)">Ej. 1: 1/(s(s+1)(s+2))</button>
+      <button class="secondary" onclick="loadExample(2)">Ej. 2: 25/(s²+4s+25)</button>
+      <button class="secondary" onclick="loadExample(3)">Ej. 3: (s+2)/(s(s+2)(s+3))</button>
+      <button class="secondary" onclick="loadExample(4)">Ej. 4: (s+2)/(((s+1)²+1)(s+4))</button>
+    </div>
+
+    <div class="error" id="error"></div>
+    <div class="info">
+      <strong>Tip:</strong> Cada gráfico tiene controles de zoom en la esquina superior derecha. También podés hacer scroll dentro del gráfico, arrastrar para hacer zoom de área, o doble-click para resetear.
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Compensación C(s)</h2>
+    <div class="inputs">
+      <div>
+        <label for="compType">Tipo de compensador</label>
+        <select id="compType" onchange="updateCompFields()">
+          <option value="none">Sin compensación</option>
+          <option value="P">Proporcional (P)</option>
+          <option value="PI">PI</option>
+          <option value="PD">PD</option>
+          <option value="PID">PID</option>
+          <option value="lead">Adelanto (Lead)</option>
+          <option value="lag">Atraso (Lag)</option>
+          <option value="leadlag">Adelanto–Atraso</option>
+          <option value="leadAuto">Diseño automático de Lead</option>
+          <option value="custom">Personalizado (expresión)</option>
+        </select>
+      </div>
+      <div>
+        <label>Opciones de visualización</label>
+        <label style="font-weight:normal; display:block; margin-top:8px;">
+          <input type="checkbox" id="showOriginal" checked> Superponer sistema sin compensar (línea punteada)
+        </label>
+      </div>
+    </div>
+
+    <div id="compFields" class="comp-fields"></div>
+
+    <div id="compInfo" style="display:none;">
+      <div class="subhead">Compensador resultante</div>
+      <div class="tf-display" id="compDisplay">C(s) = </div>
+      <div class="subhead">Lazo abierto compensado L(s) = C(s)·G(s)</div>
+      <div class="tf-display" id="loopDisplay">L(s) = </div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="plot-card">
+      <h3>Lugar de Raíces</h3>
+      <p class="hint">Polos del sistema en lazo cerrado al variar K ∈ [0, K<sub>max</sub>]</p>
+      <div id="rlocus" class="plot"></div>
+    </div>
+    <div class="plot-card">
+      <h3>Diagrama de Nyquist</h3>
+      <p class="hint">G(jω) en el plano complejo, ω ∈ (-∞, ∞)</p>
+      <div id="nyquist" class="plot"></div>
+    </div>
+    <div class="plot-card">
+      <h3>Bode — Magnitud</h3>
+      <p class="hint">|G(jω)| en dB vs frecuencia (rad/s)</p>
+      <div id="bodeMag" class="plot"></div>
+    </div>
+    <div class="plot-card">
+      <h3>Bode — Fase</h3>
+      <p class="hint">∠G(jω) en grados vs frecuencia (rad/s)</p>
+      <div id="bodePhase" class="plot"></div>
+    </div>
+  </div>
+
+  <section class="panel">
+    <h2>Análisis asintótico de Bode</h2>
+    <p style="color:#6b7280; margin-top:0;">Aproximación asintótica (rectas) que detalla cada tramo del diagrama. Se usa el sistema actualmente graficado (compensado si hay compensador activo).</p>
+
+    <div class="stats" id="marginsStats"></div>
+
+    <div class="grid" style="margin-top:16px;">
+      <div>
+        <div class="subhead">Magnitud — pendientes por tramo</div>
+        <div id="magAnalysis"></div>
+      </div>
+      <div>
+        <div class="subhead">Fase — aporte por singularidad</div>
+        <div id="phaseAnalysis"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ============ Complex number utilities ============
+const C = {
+  add: (a, b) => ({ re: a.re + b.re, im: a.im + b.im }),
+  sub: (a, b) => ({ re: a.re - b.re, im: a.im - b.im }),
+  mul: (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }),
+  div: (a, b) => {
+    const d = b.re * b.re + b.im * b.im;
+    return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+  },
+  abs: a => Math.hypot(a.re, a.im),
+  arg: a => Math.atan2(a.im, a.re),
+  fromReal: r => ({ re: r, im: 0 }),
+};
+
+// Evaluate polynomial with real coefficients at complex point (Horner)
+function polyEvalC(coeffs, s) {
+  let result = { re: 0, im: 0 };
+  for (let i = 0; i < coeffs.length; i++) {
+    result = C.add(C.mul(result, s), { re: coeffs[i], im: 0 });
+  }
+  return result;
+}
+
+// Polynomial addition (arrays, highest degree first)
+function polyAdd(a, b) {
+  const n = Math.max(a.length, b.length);
+  const pa = Array(n - a.length).fill(0).concat(a);
+  const pb = Array(n - b.length).fill(0).concat(b);
+  return pa.map((v, i) => v + pb[i]);
+}
+
+// Polynomial scalar multiply
+function polyScale(p, k) { return p.map(v => v * k); }
+
+// Find polynomial roots using Durand-Kerner method
+function polyRoots(coeffs) {
+  // Strip leading zeros
+  while (coeffs.length > 1 && Math.abs(coeffs[0]) < 1e-14) coeffs = coeffs.slice(1);
+  const n = coeffs.length - 1;
+  if (n <= 0) return [];
+  // Normalize
+  const a = coeffs.map(c => c / coeffs[0]);
+
+  // Initial guesses on a circle
+  const roots = [];
+  const r = 1 + Math.max(...a.slice(1).map(Math.abs));
+  for (let i = 0; i < n; i++) {
+    const angle = 2 * Math.PI * i / n + 0.4;
+    roots.push({ re: r * 0.5 * Math.cos(angle), im: r * 0.5 * Math.sin(angle) });
+  }
+
+  // Iterate
+  const maxIter = 200;
+  for (let iter = 0; iter < maxIter; iter++) {
+    let maxDelta = 0;
+    for (let i = 0; i < n; i++) {
+      const num = polyEvalC(a, roots[i]);
+      let den = { re: 1, im: 0 };
+      for (let j = 0; j < n; j++) {
+        if (i !== j) den = C.mul(den, C.sub(roots[i], roots[j]));
+      }
+      const delta = C.div(num, den);
+      roots[i] = C.sub(roots[i], delta);
+      maxDelta = Math.max(maxDelta, C.abs(delta));
+    }
+    if (maxDelta < 1e-12) break;
+  }
+  // Clean tiny imaginary parts
+  return roots.map(r => ({
+    re: Math.abs(r.re) < 1e-9 ? 0 : r.re,
+    im: Math.abs(r.im) < 1e-9 ? 0 : r.im,
+  }));
+}
+
+// ============ Polynomial ops needed for expression parser ============
+function polyMul(a, b) {
+  const r = new Array(a.length + b.length - 1).fill(0);
+  for (let i = 0; i < a.length; i++)
+    for (let j = 0; j < b.length; j++)
+      r[i + j] += a[i] * b[j];
+  return r;
+}
+function polySub(a, b) { return polyAdd(a, polyScale(b, -1)); }
+function polyPow(p, n) {
+  let r = [1];
+  for (let i = 0; i < n; i++) r = polyMul(r, p);
+  return r;
+}
+
+// ============ Expression parser ============
+// Grammar (recursive descent):
+//   expr   = term (('+'|'-') term)*
+//   term   = power (('*'|'/') power)*
+//   power  = unary ('^' unary)?
+//   unary  = ('-'|'+') unary | atom
+//   atom   = number | 's' | '(' expr ')'
+// Implicit multiplication is inserted between value-like tokens.
+
+function tokenize(str) {
+  const tokens = [];
+  let i = 0;
+  while (i < str.length) {
+    const c = str[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (c === 's' || c === 'S') { tokens.push({ type: 's', raw: c }); i++; continue; }
+    if ('+-*/^()'.includes(c)) { tokens.push({ type: c, raw: c }); i++; continue; }
+    if (/[\d.]/.test(c)) {
+      let j = i;
+      while (j < str.length && /[\d.]/.test(str[j])) j++;
+      if (j < str.length && (str[j] === 'e' || str[j] === 'E')) {
+        j++;
+        if (j < str.length && (str[j] === '+' || str[j] === '-')) j++;
+        while (j < str.length && /\d/.test(str[j])) j++;
+      }
+      const raw = str.substring(i, j);
+      const v = parseFloat(raw);
+      if (isNaN(v)) throw new Error("Número inválido: " + raw);
+      tokens.push({ type: 'num', value: v, raw });
+      i = j;
+      continue;
+    }
+    throw new Error("Carácter inválido: '" + c + "'");
+  }
+  // Insert implicit '*'
+  const out = [];
+  for (let k = 0; k < tokens.length; k++) {
+    out.push(tokens[k]);
+    const cur = tokens[k], next = tokens[k + 1];
+    if (!next) continue;
+    const curIsVal = cur.type === 'num' || cur.type === 's' || cur.type === ')';
+    const nextIsVal = next.type === 'num' || next.type === 's' || next.type === '(';
+    if (curIsVal && nextIsVal) out.push({ type: '*', raw: '*', implicit: true });
+  }
+  return out;
+}
+
+function parseExpression(str) {
+  const tokens = tokenize(str);
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const eat = () => tokens[pos++];
+
+  function expr() {
+    let left = term();
+    while (peek() && (peek().type === '+' || peek().type === '-')) {
+      const op = eat().type;
+      const right = term();
+      left = op === '+' ? polyAdd(left, right) : polySub(left, right);
+    }
+    return left;
+  }
+  function term() {
+    let left = power();
+    while (peek() && (peek().type === '*' || peek().type === '/')) {
+      const op = eat().type;
+      const right = power();
+      if (op === '*') left = polyMul(left, right);
+      else {
+        if (right.length !== 1)
+          throw new Error("División solo permitida por constantes. Pasalo al otro lado de la fracción.");
+        if (Math.abs(right[0]) < 1e-14) throw new Error("División por cero");
+        left = polyScale(left, 1 / right[0]);
+      }
+    }
+    return left;
+  }
+  function power() {
+    const base = unary();
+    if (peek() && peek().type === '^') {
+      eat();
+      const e = unary();
+      if (e.length !== 1 || !Number.isInteger(e[0]) || e[0] < 0)
+        throw new Error("Exponente debe ser entero no negativo");
+      return polyPow(base, e[0]);
+    }
+    return base;
+  }
+  function unary() {
+    if (peek() && peek().type === '-') { eat(); return polyScale(unary(), -1); }
+    if (peek() && peek().type === '+') { eat(); return unary(); }
+    return atom();
+  }
+  function atom() {
+    const t = peek();
+    if (!t) throw new Error("Expresión incompleta");
+    if (t.type === 'num') { eat(); return [t.value]; }
+    if (t.type === 's') { eat(); return [1, 0]; }
+    if (t.type === '(') {
+      eat();
+      const e = expr();
+      if (!peek() || peek().type !== ')') throw new Error("Falta ')'");
+      eat();
+      return e;
+    }
+    throw new Error("Token inesperado: '" + t.raw + "'");
+  }
+
+  const result = expr();
+  if (pos < tokens.length)
+    throw new Error("Caracteres extra al final: '" + tokens.slice(pos).map(t => t.raw).join('') + "'");
+  // Strip leading zeros from result
+  let start = 0;
+  while (start < result.length - 1 && Math.abs(result[start]) < 1e-14) start++;
+  return result.slice(start);
+}
+
+// Auto-detect: expression if it contains 's' or any of + - * / ^ ( ) ; otherwise coefficients
+function parseInput(str) {
+  const trimmed = str.trim();
+  if (!trimmed) throw new Error("Entrada vacía");
+  if (/[sS()^*\/]/.test(trimmed) || /[+\-]/.test(trimmed.replace(/^[+\-]/, '').replace(/[eE][+\-]/g, ''))) {
+    return parseExpression(trimmed);
+  }
+  // Coefficient mode
+  const parts = trimmed.split(/[\s,]+/).filter(Boolean);
+  const nums = parts.map(Number);
+  if (nums.some(isNaN)) throw new Error("Entrada inválida: " + str);
+  return nums;
+}
+
+// ============ Compensator ============
+const COMP_DEFS = {
+  none:    { fields: [] },
+  P:       { fields: [{ k: 'K',  label: 'K',  def: 2 }] },
+  PI:      { fields: [{ k: 'Kp', label: 'Kp', def: 1 }, { k: 'Ki', label: 'Ki', def: 1 }] },
+  PD:      { fields: [{ k: 'Kp', label: 'Kp', def: 1 }, { k: 'Kd', label: 'Kd', def: 0.1 }] },
+  PID:     { fields: [{ k: 'Kp', label: 'Kp', def: 1 }, { k: 'Ki', label: 'Ki', def: 1 }, { k: 'Kd', label: 'Kd', def: 0.1 }] },
+  lead:    { fields: [{ k: 'K', label: 'K', def: 1 }, { k: 'z', label: 'cero (z)', def: 1 }, { k: 'p', label: 'polo (p)', def: 10 }],
+             help: 'Adelanto: el polo debe estar más a la izquierda que el cero (p > z).' },
+  lag:     { fields: [{ k: 'K', label: 'K', def: 1 }, { k: 'z', label: 'cero (z)', def: 10 }, { k: 'p', label: 'polo (p)', def: 1 }],
+             help: 'Atraso: el cero está más a la izquierda que el polo (z > p).' },
+  leadlag: { fields: [{ k: 'K', label: 'K', def: 1 },
+                       { k: 'z1', label: 'cero adelanto', def: 1 }, { k: 'p1', label: 'polo adelanto', def: 10 },
+                       { k: 'z2', label: 'cero atraso',  def: 1 }, { k: 'p2', label: 'polo atraso',  def: 0.1 }] },
+  leadAuto:{ fields: [{ k: 'pmDes', label: 'PM deseada (°)', def: 50 }, { k: 'wcDes', label: 'ωc deseada (rad/s)', def: 10 }],
+             help: 'Calcula un compensador Lead que da la fase requerida en ωc. Avanzado: revisá la magnitud resultante.' },
+  custom:  { fields: [{ k: 'cnum', label: 'Numerador C(s)', def: 's+1', str: true },
+                       { k: 'cden', label: 'Denominador C(s)', def: 's+10', str: true }] },
+};
+
+function updateCompFields() {
+  const type = document.getElementById('compType').value;
+  const def = COMP_DEFS[type];
+  const container = document.getElementById('compFields');
+  container.innerHTML = '';
+  for (const f of def.fields) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<label>${f.label}</label>
+      <input type="${f.str ? 'text' : 'number'}" step="any" id="cf_${f.k}" value="${f.def}">`;
+    container.appendChild(wrap);
+  }
+  if (def.help) {
+    const help = document.createElement('div');
+    help.style.cssText = 'grid-column: 1/-1; font-size:0.82rem; color:#6b7280; margin-top:4px;';
+    help.textContent = def.help;
+    container.appendChild(help);
+  }
+}
+
+function readCompParams() {
+  const type = document.getElementById('compType').value;
+  const def = COMP_DEFS[type];
+  const params = {};
+  for (const f of def.fields) {
+    const el = document.getElementById('cf_' + f.k);
+    params[f.k] = f.str ? el.value : parseFloat(el.value);
+  }
+  return { type, params };
+}
+
+function buildCompensator(type, params, G) {
+  switch (type) {
+    case 'none': return { num: [1], den: [1] };
+    case 'P':    return { num: [params.K], den: [1] };
+    case 'PI':   return { num: [params.Kp, params.Ki], den: [1, 0] };
+    case 'PD':   return { num: [params.Kd, params.Kp], den: [1] };
+    case 'PID':  return { num: [params.Kd, params.Kp, params.Ki], den: [1, 0] };
+    case 'lead':
+    case 'lag':
+      return { num: polyScale([1, params.z], params.K), den: [1, params.p] };
+    case 'leadlag': {
+      const numC = polyScale(polyMul([1, params.z1], [1, params.z2]), params.K);
+      const denC = polyMul([1, params.p1], [1, params.p2]);
+      return { num: numC, den: denC };
+    }
+    case 'custom': {
+      return { num: parseExpression(params.cnum), den: parseExpression(params.cden) };
+    }
+    case 'leadAuto': {
+      const wc = params.wcDes, pmDes = params.pmDes;
+      // Phase of G at wc
+      const Gjw = C.div(polyEvalC(G.num, { re: 0, im: wc }), polyEvalC(G.den, { re: 0, im: wc }));
+      const phaseG = C.arg(Gjw) * 180 / Math.PI;
+      const magG = C.abs(Gjw);
+      const phiNeeded = pmDes - (180 + phaseG) + 5; // +5° margen
+      if (phiNeeded <= 0 || phiNeeded >= 90) {
+        throw new Error(`Lead requiere 0° < φ < 90° (calculado: ${phiNeeded.toFixed(1)}°). Probá otro ωc o PM.`);
+      }
+      const phiRad = phiNeeded * Math.PI / 180;
+      const alpha = (1 - Math.sin(phiRad)) / (1 + Math.sin(phiRad));
+      const T = 1 / (wc * Math.sqrt(alpha));
+      // Lead: C = Kc * (1+Ts)/(1+alpha*T*s).  Para que |C(jwc)*G(jwc)| = 1: Kc = 1 / (|G(jwc)| * 1/sqrt(alpha))
+      const Kc = Math.sqrt(alpha) / magG;
+      // En forma (s+z)/(s+p): z=1/T, p=1/(alpha*T), gain Kc*(1/alpha)... mejor escribirlo directo:
+      // C(s) = Kc * (Ts+1)/(alpha*T*s + 1)
+      const num = polyScale([T, 1], Kc);
+      const den = [alpha * T, 1];
+      // Guardamos info legible
+      window._leadInfo = { phiNeeded, alpha, T, Kc, z: 1 / T, p: 1 / (alpha * T) };
+      return { num, den };
+    }
+  }
+}
+
+function combineSystems(comp, G) {
+  return { num: polyMul(comp.num, G.num), den: polyMul(comp.den, G.den) };
+}
+
+// ============ Bode analytical analysis ============
+function analyzeSystem(num, den, freqResp) {
+  const tol = 1e-6;
+  const zeros = num.length > 1 ? polyRoots([...num]) : [];
+  const poles = polyRoots([...den]);
+
+  // Roots at origin → integradores (denom) / derivadores (num)
+  const Np0 = poles.filter(p => Math.hypot(p.re, p.im) < tol).length;
+  const Nz0 = zeros.filter(z => Math.hypot(z.re, z.im) < tol).length;
+  const type = Np0 - Nz0;
+
+  // Bode gain K_B: limite de s^type * G(s) cuando s→0
+  // = (coef de menor potencia de num) / (coef de menor potencia de den)
+  // tomando num/s^Nz0 y den/s^Np0 → constantes finales
+  const numK = num[num.length - 1 - Nz0];
+  const denK = den[den.length - 1 - Np0];
+  const Kb = numK / denK;
+
+  // Pendiente inicial (dB/dec) y fase inicial (°)
+  const initialSlope = -20 * type;
+  const initialPhase = (Kb >= 0 ? 0 : -180) + (-90 * type);
+
+  // Pendiente final y fase final
+  const n = den.length - 1, m = num.length - 1;
+  const finalSlope = -20 * (n - m);
+  const finalPhase = initialPhase + 90 * zeros.filter(z => Math.hypot(z.re, z.im) >= tol).length
+                                  - 90 * poles.filter(p => Math.hypot(p.re, p.im) >= tol).length;
+
+  // Frecuencias de quiebre (sin contar las del origen)
+  const corners = [];
+  const seen = new Set();
+  for (const z of zeros) {
+    const w = Math.hypot(z.re, z.im);
+    if (w < tol) continue;
+    if (Math.abs(z.im) < tol) {
+      corners.push({ w, kind: 'Cero real', detail: `s = ${z.re.toFixed(3)}`, dSlope: +20, dPhase: +90 });
+    } else if (z.im > 0) {
+      const zeta = -z.re / w;
+      corners.push({ w, kind: 'Cero complejo (par)', detail: `ωₙ=${w.toFixed(3)}, ζ=${zeta.toFixed(3)}`, dSlope: +40, dPhase: +180 });
+    }
+  }
+  for (const p of poles) {
+    const w = Math.hypot(p.re, p.im);
+    if (w < tol) continue;
+    if (Math.abs(p.im) < tol) {
+      corners.push({ w, kind: 'Polo real', detail: `s = ${p.re.toFixed(3)}`, dSlope: -20, dPhase: -90 });
+    } else if (p.im > 0) {
+      const zeta = -p.re / w;
+      corners.push({ w, kind: 'Polo complejo (par)', detail: `ωₙ=${w.toFixed(3)}, ζ=${zeta.toFixed(3)}`, dSlope: -40, dPhase: -180 });
+    }
+  }
+  corners.sort((a, b) => a.w - b.w);
+
+  // Magnitud asintótica en ω = 1 (referencia)
+  // |G_asint(jω)| ≈ |K_B| * ω^(-type) * Π (relaciones de quiebre)
+  // En ω=1 (asumiendo no hay quiebres por debajo de 1 que cambien la referencia simple):
+  // Trabajamos directamente: magnitud asintótica en una frecuencia w arbitraria:
+  function asymMagDb(w) {
+    let dB = 20 * Math.log10(Math.abs(Kb)) - 20 * type * Math.log10(w);
+    for (const c of corners) {
+      if (w > c.w) dB += c.dSlope * Math.log10(w / c.w);
+    }
+    return dB;
+  }
+
+  // Construir tramos
+  const segments = [];
+  let slope = initialSlope;
+  // Tramo inicial: desde 0 (o muy bajo) hasta primer corner
+  const wRef = corners.length ? corners[0].w : 1;
+  segments.push({
+    wStart: null, // -infinito en log
+    wEnd: corners.length ? corners[0].w : null,
+    slope,
+    magAtEnd: asymMagDb(wRef),
+    desc: 'Tramo inicial',
+  });
+  for (let i = 0; i < corners.length; i++) {
+    slope += corners[i].dSlope;
+    const wEnd = corners[i + 1]?.w ?? null;
+    segments.push({
+      wStart: corners[i].w,
+      wEnd,
+      slope,
+      magAtStart: asymMagDb(corners[i].w),
+      magAtEnd: wEnd ? asymMagDb(wEnd) : null,
+      cornerInfo: corners[i],
+    });
+  }
+
+  // Márgenes (numéricos sobre la respuesta calculada)
+  const { ws, mag, phase } = freqResp;
+  let wgc = null, pm = null;
+  for (let i = 1; i < mag.length; i++) {
+    if ((mag[i - 1] >= 0) !== (mag[i] >= 0)) {
+      const t = -mag[i - 1] / (mag[i] - mag[i - 1]);
+      wgc = Math.exp(Math.log(ws[i - 1]) + t * (Math.log(ws[i]) - Math.log(ws[i - 1])));
+      let phAt = phase[i - 1] + t * (phase[i] - phase[i - 1]);
+      pm = 180 + phAt;
+      while (pm > 180) pm -= 360;
+      while (pm < -180) pm += 360;
+      break;
+    }
+  }
+  let wpc = null, gm = null;
+  for (let i = 1; i < phase.length; i++) {
+    if ((phase[i - 1] > -180) !== (phase[i] > -180)) {
+      const t = (-180 - phase[i - 1]) / (phase[i] - phase[i - 1]);
+      wpc = Math.exp(Math.log(ws[i - 1]) + t * (Math.log(ws[i]) - Math.log(ws[i - 1])));
+      const magAt = mag[i - 1] + t * (mag[i] - mag[i - 1]);
+      gm = -magAt;
+      break;
+    }
+  }
+
+  return {
+    type, Kb, initialSlope, initialPhase, finalSlope, finalPhase,
+    corners, segments, asymMagDb,
+    wgc, pm, wpc, gm,
+  };
+}
+
+function fmt(v, d = 3) { return (v === null || v === undefined || isNaN(v)) ? '—' : Number(v).toFixed(d); }
+function fmtSlope(s) { return (s >= 0 ? '+' : '') + s + ' dB/dec'; }
+
+function renderAnalysis(a) {
+  // Stats / márgenes
+  const stats = [];
+  stats.push({ label: 'Tipo del sistema', val: a.type });
+  stats.push({ label: 'Ganancia de Bode K_B', val: fmt(a.Kb, 4) });
+  stats.push({ label: 'Pendiente inicial', val: fmtSlope(a.initialSlope) });
+  stats.push({ label: 'Pendiente final', val: fmtSlope(a.finalSlope) });
+  stats.push({ label: 'Fase inicial', val: fmt(a.initialPhase, 1) + '°' });
+  stats.push({ label: 'Fase final', val: fmt(a.finalPhase, 1) + '°' });
+
+  // Crossovers y márgenes
+  if (a.wgc !== null) {
+    stats.push({ label: 'ω cruce de ganancia', val: fmt(a.wgc, 3) + ' rad/s' });
+    const pmClass = a.pm > 45 ? 'good' : (a.pm > 0 ? 'warn' : 'bad');
+    stats.push({ label: 'Margen de fase (PM)', val: fmt(a.pm, 1) + '°', cls: pmClass });
+  } else {
+    stats.push({ label: 'ω cruce de ganancia', val: 'sin cruce' });
+    stats.push({ label: 'Margen de fase', val: '∞' });
+  }
+  if (a.wpc !== null) {
+    stats.push({ label: 'ω cruce de fase', val: fmt(a.wpc, 3) + ' rad/s' });
+    const gmClass = a.gm > 6 ? 'good' : (a.gm > 0 ? 'warn' : 'bad');
+    stats.push({ label: 'Margen de ganancia (GM)', val: fmt(a.gm, 2) + ' dB', cls: gmClass });
+  } else {
+    stats.push({ label: 'ω cruce de fase', val: 'sin cruce' });
+    stats.push({ label: 'Margen de ganancia', val: '∞' });
+  }
+
+  document.getElementById('marginsStats').innerHTML =
+    stats.map(s => `<div class="stat ${s.cls || ''}"><div class="label">${s.label}</div><div class="value">${s.val}</div></div>`).join('');
+
+  // Tabla magnitud (tramos)
+  let magHtml = `<table class="analysis"><thead><tr>
+    <th>Tramo</th><th>Rango ω (rad/s)</th><th>Pendiente</th><th>|G| al inicio</th><th>|G| al fin</th><th>Quiebre que lo origina</th>
+    </tr></thead><tbody>`;
+  a.segments.forEach((seg, i) => {
+    const wS = seg.wStart === null ? '0⁺' : fmt(seg.wStart, 3);
+    const wE = seg.wEnd === null ? '∞' : fmt(seg.wEnd, 3);
+    const magS = i === 0 ? '—' : fmt(seg.magAtStart, 2) + ' dB';
+    const magE = seg.magAtEnd === null ? '—' : fmt(seg.magAtEnd, 2) + ' dB';
+    const origin = i === 0
+      ? (a.type === 0 ? `Comienza en ${fmt(20 * Math.log10(Math.abs(a.Kb)), 2)} dB (G(0))` : `${a.type} integrador(es) en el origen`)
+      : `${seg.cornerInfo.kind} en ω = ${fmt(seg.cornerInfo.w, 3)} (${seg.cornerInfo.detail}) → Δ ${fmtSlope(seg.cornerInfo.dSlope)}`;
+    magHtml += `<tr><td>${i + 1}</td><td>${wS} → ${wE}</td><td><strong>${fmtSlope(seg.slope)}</strong></td><td>${magS}</td><td>${magE}</td><td>${origin}</td></tr>`;
+  });
+  magHtml += '</tbody></table>';
+  document.getElementById('magAnalysis').innerHTML = magHtml;
+
+  // Tabla fase
+  let phaseHtml = `<table class="analysis"><thead><tr>
+    <th>ω quiebre (rad/s)</th><th>Singularidad</th><th>Aporte a la fase</th><th>Rango de transición (±1 dec)</th>
+    </tr></thead><tbody>`;
+  phaseHtml += `<tr><td>0⁺</td><td>Inicial (tipo ${a.type})</td><td>${fmt(a.initialPhase, 1)}°</td><td>—</td></tr>`;
+  for (const c of a.corners) {
+    phaseHtml += `<tr><td>${fmt(c.w, 3)}</td><td>${c.kind} (${c.detail})</td><td>${c.dPhase >= 0 ? '+' : ''}${c.dPhase}°</td><td>${fmt(c.w / 10, 3)} – ${fmt(c.w * 10, 3)}</td></tr>`;
+  }
+  phaseHtml += `<tr><td>∞</td><td>Final</td><td>${fmt(a.finalPhase, 1)}°</td><td>—</td></tr>`;
+  phaseHtml += '</tbody></table>';
+  document.getElementById('phaseAnalysis').innerHTML = phaseHtml;
+}
+
+// ============ Render TF as fraction ============
+function termStr(coeff, deg, isFirst) {
+  if (Math.abs(coeff) < 1e-12) return "";
+  const absC = Math.abs(coeff);
+  const sign = coeff < 0 ? (isFirst ? "-" : " − ") : (isFirst ? "" : " + ");
+  let cStr = "";
+  if (deg === 0 || absC !== 1) cStr = absC % 1 === 0 ? absC.toString() : absC.toFixed(3);
+  let sStr = "";
+  if (deg === 1) sStr = "s";
+  else if (deg > 1) sStr = "s<sup>" + deg + "</sup>";
+  return sign + cStr + sStr;
+}
+function polyToHtml(p) {
+  const n = p.length - 1;
+  let out = "";
+  let first = true;
+  for (let i = 0; i <= n; i++) {
+    const t = termStr(p[i], n - i, first);
+    if (t) { out += t; first = false; }
+  }
+  return out || "0";
+}
+function updateTfDisplay(num, den) {
+  document.getElementById("tfDisplay").innerHTML =
+    'G(s) = <span class="frac"><span class="num">' + polyToHtml(num) +
+    '</span><span class="den">' + polyToHtml(den) + '</span></span>';
+}
+
+// ============ Plots ============
+const PLOT_CONFIG = {
+  responsive: true,
+  displaylogo: false,
+  scrollZoom: true,
+  modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+  toImageButtonOptions: { format: 'png', scale: 2 },
+};
+
+function plotRootLocus(num, den, Kmax) {
+  // Characteristic eq: den(s) + K*num(s) = 0
+  const Kvals = [];
+  const steps = 400;
+  // Log spacing from small K to Kmax
+  for (let i = 0; i <= steps; i++) {
+    Kvals.push(Kmax * i / steps);
+  }
+  // Also add some log-spaced small values
+  const small = [];
+  for (let i = 1; i <= 50; i++) small.push(Kmax * Math.pow(10, -4 + 4 * i / 50));
+  const allK = [...new Set([...small, ...Kvals])].sort((a, b) => a - b);
+
+  // Open loop poles (K=0): roots of den
+  const olPoles = polyRoots([...den]);
+  // Open loop zeros: roots of num
+  const olZeros = num.length > 1 ? polyRoots([...num]) : [];
+
+  const branches = []; // array of {re:[], im:[]} per branch
+  const nBranches = den.length - 1;
+  for (let b = 0; b < nBranches; b++) branches.push({ re: [], im: [] });
+
+  let prevRoots = polyRoots([...den]);
+  for (const K of allK) {
+    const charPoly = polyAdd(den, polyScale(num, K));
+    let roots = polyRoots([...charPoly]);
+    // Match roots to previous to keep branches continuous (greedy nearest)
+    const matched = new Array(roots.length).fill(false);
+    const ordered = [];
+    for (const pr of prevRoots) {
+      let bestIdx = -1, bestDist = Infinity;
+      for (let i = 0; i < roots.length; i++) {
+        if (matched[i]) continue;
+        const d = Math.hypot(pr.re - roots[i].re, pr.im - roots[i].im);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      if (bestIdx >= 0) { matched[bestIdx] = true; ordered.push(roots[bestIdx]); }
+    }
+    for (let b = 0; b < nBranches; b++) {
+      branches[b].re.push(ordered[b].re);
+      branches[b].im.push(ordered[b].im);
+    }
+    prevRoots = ordered;
+  }
+
+  const traces = branches.map((br, i) => ({
+    x: br.re, y: br.im,
+    mode: 'lines', type: 'scatter',
+    name: 'Rama ' + (i + 1),
+    line: { width: 2 },
+    hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra></extra>',
+  }));
+
+  traces.push({
+    x: olPoles.map(p => p.re), y: olPoles.map(p => p.im),
+    mode: 'markers', type: 'scatter', name: 'Polos (K=0)',
+    marker: { symbol: 'x', size: 12, color: '#dc2626', line: { width: 3 } },
+  });
+  if (olZeros.length) {
+    traces.push({
+      x: olZeros.map(z => z.re), y: olZeros.map(z => z.im),
+      mode: 'markers', type: 'scatter', name: 'Ceros',
+      marker: { symbol: 'circle-open', size: 12, color: '#059669', line: { width: 3 } },
+    });
+  }
+
+  Plotly.newPlot('rlocus', traces, {
+    margin: { t: 20, r: 10, b: 40, l: 50 },
+    xaxis: { title: 'Re(s)', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb' },
+    yaxis: { title: 'Im(s)', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb', scaleanchor: 'x' },
+    showlegend: false,
+    hovermode: 'closest',
+  }, PLOT_CONFIG);
+}
+
+function computeFreqResponse(num, den, wMin, wMax) {
+  const N = 1000;
+  const ws = [];
+  for (let i = 0; i <= N; i++) {
+    const exp = wMin + (wMax - wMin) * i / N;
+    ws.push(Math.pow(10, exp));
+  }
+  const mag = [], phase = [], re = [], im = [];
+  let prevPhase = null;
+  let offset = 0;
+  for (const w of ws) {
+    const s = { re: 0, im: w };
+    const G = C.div(polyEvalC(num, s), polyEvalC(den, s));
+    re.push(G.re); im.push(G.im);
+    mag.push(20 * Math.log10(C.abs(G)));
+    let ph = C.arg(G) * 180 / Math.PI;
+    // Unwrap phase
+    if (prevPhase !== null) {
+      const diff = (ph + offset) - prevPhase;
+      if (diff > 180) offset -= 360;
+      else if (diff < -180) offset += 360;
+    }
+    const ufPh = ph + offset;
+    phase.push(ufPh);
+    prevPhase = ufPh;
+  }
+  return { ws, mag, phase, re, im };
+}
+
+function plotBode(main, original) {
+  const magTraces = [{
+    x: main.ws, y: main.mag, mode: 'lines', type: 'scatter',
+    name: original ? 'L(s) = C·G' : 'G(s)',
+    line: { color: '#2563eb', width: 2 },
+    hovertemplate: 'ω: %{x:.3g} rad/s<br>|G|: %{y:.2f} dB<extra></extra>',
+  }];
+  const phaseTraces = [{
+    x: main.ws, y: main.phase, mode: 'lines', type: 'scatter',
+    name: original ? 'L(s) = C·G' : 'G(s)',
+    line: { color: '#7c3aed', width: 2 },
+    hovertemplate: 'ω: %{x:.3g} rad/s<br>∠G: %{y:.2f}°<extra></extra>',
+  }];
+  if (original) {
+    magTraces.unshift({
+      x: original.ws, y: original.mag, mode: 'lines', type: 'scatter',
+      name: 'G(s) sin compensar',
+      line: { color: '#9ca3af', width: 1.5, dash: 'dash' },
+      hovertemplate: 'ω: %{x:.3g}<br>|G|: %{y:.2f} dB<extra></extra>',
+    });
+    phaseTraces.unshift({
+      x: original.ws, y: original.phase, mode: 'lines', type: 'scatter',
+      name: 'G(s) sin compensar',
+      line: { color: '#9ca3af', width: 1.5, dash: 'dash' },
+      hovertemplate: 'ω: %{x:.3g}<br>∠G: %{y:.2f}°<extra></extra>',
+    });
+  }
+
+  Plotly.newPlot('bodeMag', magTraces, {
+    margin: { t: 20, r: 10, b: 40, l: 60 },
+    xaxis: { title: 'ω (rad/s)', type: 'log', gridcolor: '#e5e7eb' },
+    yaxis: { title: '|G(jω)| (dB)', gridcolor: '#e5e7eb', zeroline: true, zerolinecolor: '#9ca3af' },
+    showlegend: !!original,
+    legend: { x: 0.02, y: 0.98 },
+  }, PLOT_CONFIG);
+
+  Plotly.newPlot('bodePhase', phaseTraces, {
+    margin: { t: 20, r: 10, b: 40, l: 60 },
+    xaxis: { title: 'ω (rad/s)', type: 'log', gridcolor: '#e5e7eb' },
+    yaxis: { title: '∠G(jω) (°)', gridcolor: '#e5e7eb', zeroline: true, zerolinecolor: '#9ca3af' },
+    showlegend: !!original,
+    legend: { x: 0.02, y: 0.98 },
+  }, PLOT_CONFIG);
+}
+
+function plotNyquist(main, original) {
+  const traces = [];
+  if (original) {
+    traces.push({
+      x: original.re, y: original.im, mode: 'lines', type: 'scatter',
+      name: 'G(s) ω>0', line: { color: '#9ca3af', width: 1.5, dash: 'dash' },
+    });
+    traces.push({
+      x: original.re, y: original.im.map(v => -v), mode: 'lines', type: 'scatter',
+      name: 'G(s) ω<0', line: { color: '#d1d5db', width: 1.5, dash: 'dot' },
+    });
+  }
+  traces.push({
+    x: main.re, y: main.im, mode: 'lines', type: 'scatter',
+    name: (original ? 'L ' : '') + 'ω > 0',
+    line: { color: '#2563eb', width: 2 },
+    hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra></extra>',
+  });
+  traces.push({
+    x: main.re, y: main.im.map(v => -v), mode: 'lines', type: 'scatter',
+    name: (original ? 'L ' : '') + 'ω < 0',
+    line: { color: '#dc2626', width: 2, dash: 'dash' },
+    hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra></extra>',
+  });
+  traces.push({
+    x: [-1], y: [0], mode: 'markers', type: 'scatter',
+    name: '-1+j0',
+    marker: { symbol: 'x', size: 12, color: '#000', line: { width: 3 } },
+  });
+
+  Plotly.newPlot('nyquist', traces, {
+    margin: { t: 20, r: 10, b: 40, l: 50 },
+    xaxis: { title: 'Re', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb' },
+    yaxis: { title: 'Im', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb', scaleanchor: 'x' },
+    showlegend: true,
+    legend: { x: 0.02, y: 0.98 },
+  }, PLOT_CONFIG);
+}
+
+// ============ Main ============
+function showError(msg) {
+  const e = document.getElementById('error');
+  e.textContent = msg;
+  e.style.display = 'block';
+}
+function clearError() { document.getElementById('error').style.display = 'none'; }
+
+function computeAll() {
+  clearError();
+  try {
+    const numG = parseInput(document.getElementById('num').value);
+    const denG = parseInput(document.getElementById('den').value);
+    if (denG.length < 1 || Math.abs(denG[0]) < 1e-14) throw new Error("El denominador no puede ser cero.");
+    const Kmax = parseFloat(document.getElementById('kmax').value);
+    const wMin = parseFloat(document.getElementById('wmin').value);
+    const wMax = parseFloat(document.getElementById('wmax').value);
+    if (wMax <= wMin) throw new Error("ω máximo debe ser mayor que ω mínimo.");
+
+    updateTfDisplay(numG, denG);
+
+    // Build compensator
+    const { type: compType, params: compParams } = readCompParams();
+    const G = { num: numG, den: denG };
+    const Cs = buildCompensator(compType, compParams, G);
+    const L = combineSystems(Cs, G);
+
+    const compInfo = document.getElementById('compInfo');
+    if (compType === 'none') {
+      compInfo.style.display = 'none';
+    } else {
+      compInfo.style.display = 'block';
+      document.getElementById('compDisplay').innerHTML =
+        'C(s) = <span class="frac"><span class="num">' + polyToHtml(Cs.num) +
+        '</span><span class="den">' + polyToHtml(Cs.den) + '</span></span>' +
+        (window._leadInfo && compType === 'leadAuto'
+          ? `<div style="margin-left:16px; font-size:0.85rem; color:#6b7280;">α=${window._leadInfo.alpha.toFixed(4)}, T=${window._leadInfo.T.toFixed(4)}, Kc=${window._leadInfo.Kc.toFixed(4)}, z=${window._leadInfo.z.toFixed(3)}, p=${window._leadInfo.p.toFixed(3)}</div>`
+          : '');
+      document.getElementById('loopDisplay').innerHTML =
+        'L(s) = <span class="frac"><span class="num">' + polyToHtml(L.num) +
+        '</span><span class="den">' + polyToHtml(L.den) + '</span></span>';
+    }
+
+    // Compute responses
+    const frL = computeFreqResponse(L.num, L.den, wMin, wMax);
+    const showOrig = document.getElementById('showOriginal').checked && compType !== 'none';
+    const frG = showOrig ? computeFreqResponse(numG, denG, wMin, wMax) : null;
+
+    // Plots (use compensated system)
+    plotRootLocus(L.num, L.den, Kmax);
+    plotBode(frL, frG);
+    plotNyquist({ re: frL.re, im: frL.im }, frG ? { re: frG.re, im: frG.im } : null);
+
+    // Analysis on the plotted (compensated) system
+    const analysis = analyzeSystem(L.num, L.den, frL);
+    renderAnalysis(analysis);
+  } catch (err) {
+    showError(err.message);
+    console.error(err);
+  }
+}
+
+function loadExample(n) {
+  if (n === 1) {
+    document.getElementById('num').value = "1";
+    document.getElementById('den').value = "s*(s+1)*(s+2)";
+    document.getElementById('kmax').value = "20";
+  } else if (n === 2) {
+    document.getElementById('num').value = "25";
+    document.getElementById('den').value = "s^2 + 4*s + 25";
+    document.getElementById('kmax').value = "10";
+  } else if (n === 3) {
+    document.getElementById('num').value = "s+2";
+    document.getElementById('den').value = "s*(s+2)*(s+3)";
+    document.getElementById('kmax').value = "50";
+  } else if (n === 4) {
+    document.getElementById('num').value = "s+2";
+    document.getElementById('den').value = "((s+1)^2 + 1) * (s+4)";
+    document.getElementById('kmax').value = "50";
+  }
+  computeAll();
+}
+
+// Recompute on compensator-field change (delegated, since fields are dynamic)
+document.getElementById('compFields').addEventListener('change', computeAll);
+document.getElementById('showOriginal').addEventListener('change', computeAll);
+
+// Wrap updateCompFields so it also triggers a recompute
+const _origUpdateCompFields = updateCompFields;
+updateCompFields = function () { _origUpdateCompFields(); computeAll(); };
+
+// Auto-compute on load
+window.addEventListener('load', () => {
+  _origUpdateCompFields();
+  computeAll();
+});
+</script>
+
+</body>
+</html>
