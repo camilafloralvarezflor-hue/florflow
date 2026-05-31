@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¡Giovanni cumple 1 año! - Invitación Batman</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bungee&family=Bowlby+One&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bat-yellow: #ffd900;
+    --bat-yellow-dark: #f5b800;
+    --bat-black: #0a0a0a;
+    --bat-gray: #2b2b3d;
+    --bat-blue: #1a2540;
+    --comic-red: #e63946;
+  }
+
+  html, body { overflow-x: hidden; }
+
+  body {
+    font-family: 'Bangers', cursive;
+    background: var(--bat-black);
+    color: #fff;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* ----- Fondo Gotham con halftone ----- */
+  .gotham-bg {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,217,0,0.15) 0%, transparent 45%),
+      radial-gradient(ellipse at 20% 80%, rgba(26,37,64,0.9) 0%, transparent 60%),
+      linear-gradient(180deg, #050510 0%, #0d1428 40%, #1a2540 70%, #050510 100%);
+    z-index: -3;
+  }
+
+  .halftone {
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,217,0,0.08) 1px, transparent 1.5px);
+    background-size: 14px 14px;
+    z-index: -2;
+    pointer-events: none;
+  }
+
+  /* ----- Bat-señal en el cielo ----- */
+  .bat-signal {
+    position: fixed;
+    top: -50px;
+    right: 8%;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,217,0,0.55) 0%, rgba(255,217,0,0.15) 40%, transparent 70%);
+    z-index: -1;
+    animation: signalPulse 3s ease-in-out infinite;
+  }
+  .bat-signal::before {
+    content: '';
+    position: absolute;
+    inset: 30%;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><path fill='%230a0a0a' d='M50 5c-3 8-9 12-18 12-6 0-11-2-15-5 2 6 4 11 8 14-4 0-8 0-12 2 6 4 13 6 20 8-5 2-8 6-10 11 7-4 13-5 19-4-2 5-3 10-3 16 5-5 9-9 14-11h2c5 2 9 6 14 11 0-6-1-11-3-16 6-1 12 0 19 4-2-5-5-9-10-11 7-2 14-4 20-8-4-2-8-2-12-2 4-3 6-8 8-14-4 3-9 5-15 5-9 0-15-4-18-12z'/></svg>") center/contain no-repeat;
+    filter: drop-shadow(0 0 6px rgba(255,217,0,0.8));
+  }
+
+  @keyframes signalPulse {
+    0%, 100% { opacity: .8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  /* ----- Murciélagos flotando ----- */
+  .bat {
+    position: fixed;
+    width: 50px;
+    height: 30px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><path fill='%230a0a0a' d='M50 5c-3 8-9 12-18 12-6 0-11-2-15-5 2 6 4 11 8 14-4 0-8 0-12 2 6 4 13 6 20 8-5 2-8 6-10 11 7-4 13-5 19-4-2 5-3 10-3 16 5-5 9-9 14-11h2c5 2 9 6 14 11 0-6-1-11-3-16 6-1 12 0 19 4-2-5-5-9-10-11 7-2 14-4 20-8-4-2-8-2-12-2 4-3 6-8 8-14-4 3-9 5-15 5-9 0-15-4-18-12z'/></svg>") center/contain no-repeat;
+    z-index: 0;
+    opacity: .85;
+    pointer-events: none;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,.8));
+  }
+  .bat.b1 { top: 15%; left: -60px; animation: flyAcross 14s linear infinite; }
+  .bat.b2 { top: 35%; left: -60px; animation: flyAcross 18s linear infinite 4s; width: 35px; height: 22px; }
+  .bat.b3 { top: 65%; left: -60px; animation: flyAcross 16s linear infinite 8s; width: 40px; height: 25px; }
+  .bat.b4 { top: 80%; left: -60px; animation: flyAcross 20s linear infinite 12s; width: 55px; height: 33px; }
+
+  @keyframes flyAcross {
+    0%   { transform: translateX(0) translateY(0) rotate(-5deg); }
+    25%  { transform: translateX(30vw) translateY(-15px) rotate(5deg); }
+    50%  { transform: translateX(55vw) translateY(10px) rotate(-5deg); }
+    75%  { transform: translateX(80vw) translateY(-10px) rotate(5deg); }
+    100% { transform: translateX(110vw) translateY(0) rotate(-5deg); }
+  }
+
+  /* ----- Contenedor general ----- */
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 30px 18px 60px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ----- Splash inicial estilo cómic ----- */
+  .splash {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+  }
+
+  .splash .biff {
+    display: inline-block;
+    position: relative;
+    background: var(--bat-yellow);
+    color: var(--bat-black);
+    padding: 18px 40px;
+    font-family: 'Bungee', cursive;
+    font-size: clamp(28px, 6vw, 46px);
+    letter-spacing: 2px;
+    border: 5px solid var(--bat-black);
+    box-shadow: 8px 8px 0 var(--bat-black);
+    transform: rotate(-4deg);
+    animation: bounceIn 1s cubic-bezier(.36,1.56,.64,1) both;
+    clip-path: polygon(
+      0% 15%, 8% 0%, 18% 12%, 28% 0%, 38% 15%, 50% 2%, 62% 15%,
+      72% 0%, 82% 12%, 92% 0%, 100% 15%, 95% 35%, 100% 50%,
+      95% 65%, 100% 85%, 92% 100%, 82% 88%, 72% 100%, 62% 85%,
+      50% 100%, 38% 85%, 28% 100%, 18% 88%, 8% 100%, 0% 85%,
+      5% 65%, 0% 50%, 5% 35%
+    );
+  }
+
+  @keyframes bounceIn {
+    0% { opacity: 0; transform: scale(0) rotate(180deg); }
+    60% { opacity: 1; transform: scale(1.2) rotate(-8deg); }
+    100% { opacity: 1; transform: scale(1) rotate(-4deg); }
+  }
+
+  /* ----- Panel principal estilo cómic ----- */
+  .comic-panel {
+    background: #fff;
+    border: 5px solid var(--bat-black);
+    box-shadow: 10px 10px 0 var(--bat-black);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    transform: rotate(-1deg);
+    transition: transform .3s ease;
+  }
+  .comic-panel:hover { transform: rotate(0deg) scale(1.01); }
+  .comic-panel.tilt-r { transform: rotate(1deg); }
+  .comic-panel.tilt-r:hover { transform: rotate(0deg) scale(1.01); }
+
+  /* ----- Panel de la foto ----- */
+  .hero-panel {
+    background: linear-gradient(180deg, #1a2540 0%, #0d1428 100%);
+    padding: 0;
+    position: relative;
+  }
+
+  .hero-panel .photo-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1.05;
+    overflow: hidden;
+    background: #0d1428;
+  }
+
+  .hero-panel .photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    filter: contrast(1.15) saturate(1.15);
+    animation: heroZoom 8s ease-in-out infinite alternate;
+  }
+
+  @keyframes heroZoom {
+    from { transform: scale(1); }
+    to { transform: scale(1.06); }
+  }
+
+  /* Overlay halftone sobre la foto */
+  .hero-panel .photo-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(0,0,0,0.18) 1px, transparent 1.5px);
+    background-size: 6px 6px;
+    mix-blend-mode: multiply;
+    opacity: .35;
+    pointer-events: none;
+  }
+
+  /* Globo de diálogo sobre la foto */
+  .speech {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    background: #fff;
+    color: var(--bat-black);
+    padding: 10px 18px;
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(18px, 4vw, 24px);
+    border: 4px solid var(--bat-black);
+    border-radius: 50% 50% 50% 10% / 50% 50% 50% 10%;
+    transform: rotate(-6deg);
+    animation: float 3s ease-in-out infinite;
+    z-index: 3;
+    max-width: 65%;
+  }
+  .speech::after {
+    content: '';
+    position: absolute;
+    bottom: -22px;
+    left: 22px;
+    border: 12px solid transparent;
+    border-top-color: var(--bat-black);
+  }
+  .speech::before {
+    content: '';
+    position: absolute;
+    bottom: -14px;
+    left: 26px;
+    border: 8px solid transparent;
+    border-top-color: #fff;
+    z-index: 2;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: rotate(-6deg) translateY(0); }
+    50% { transform: rotate(-4deg) translateY(-6px); }
+  }
+
+  /* Nombre y edad */
+  .hero-name {
+    background: var(--bat-yellow);
+    color: var(--bat-black);
+    text-align: center;
+    padding: 14px 10px 18px;
+    border-top: 5px solid var(--bat-black);
+    position: relative;
+  }
+  .hero-name .name {
+    font-family: 'Bowlby One', sans-serif;
+    font-size: clamp(40px, 9vw, 64px);
+    letter-spacing: 3px;
+    line-height: 1;
+    text-shadow: 4px 4px 0 var(--bat-black);
+    -webkit-text-stroke: 2px var(--bat-black);
+  }
+  .hero-name .age {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(20px, 4.5vw, 28px);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+  .hero-name .age span {
+    background: var(--comic-red);
+    color: #fff;
+    padding: 2px 12px;
+    display: inline-block;
+    transform: rotate(-2deg);
+    border: 3px solid var(--bat-black);
+    margin: 0 4px;
+  }
+
+  /* ----- Panels de info ----- */
+  .info-panel {
+    background: #fff;
+    color: var(--bat-black);
+    padding: 22px 20px;
+  }
+  .info-panel.dark {
+    background: var(--bat-black);
+    color: var(--bat-yellow);
+  }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .info-row:last-child { margin-bottom: 0; }
+
+  .info-icon {
+    flex-shrink: 0;
+    width: 54px;
+    height: 54px;
+    background: var(--bat-yellow);
+    border: 3px solid var(--bat-black);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 3px 3px 0 var(--bat-black);
+  }
+
+  .info-text { flex: 1; }
+  .info-text .label {
+    font-family: 'Bungee', cursive;
+    font-size: 14px;
+    letter-spacing: 2px;
+    opacity: .7;
+    margin-bottom: 2px;
+  }
+  .info-text .value {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(22px, 5vw, 28px);
+    letter-spacing: 1.5px;
+    line-height: 1.1;
+  }
+
+  /* ----- Comic burst (POW! ZAP!) ----- */
+  .burst {
+    position: absolute;
+    background: var(--comic-red);
+    color: #fff;
+    font-family: 'Bungee', cursive;
+    padding: 14px 22px;
+    border: 4px solid var(--bat-black);
+    font-size: 24px;
+    letter-spacing: 2px;
+    clip-path: polygon(
+      0% 20%, 12% 0%, 22% 18%, 34% 0%, 46% 18%, 58% 0%, 70% 18%,
+      82% 0%, 92% 18%, 100% 30%, 92% 50%, 100% 70%, 92% 90%,
+      82% 100%, 70% 82%, 58% 100%, 46% 82%, 34% 100%, 22% 82%,
+      12% 100%, 0% 80%, 8% 60%, 0% 50%, 8% 30%
+    );
+    z-index: 4;
+    animation: wiggle 1.5s ease-in-out infinite;
+  }
+  .burst.pow {
+    top: 30px;
+    right: -10px;
+    transform: rotate(15deg);
+    background: var(--bat-yellow);
+    color: var(--bat-black);
+  }
+  .burst.zap {
+    bottom: 50px;
+    right: -15px;
+    transform: rotate(-12deg);
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(15deg) scale(1); }
+    50% { transform: rotate(18deg) scale(1.08); }
+  }
+
+  /* ----- Sección invitación texto ----- */
+  .invitation-text {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .invitation-text h2 {
+    font-family: 'Bowlby One', sans-serif;
+    font-size: clamp(28px, 7vw, 42px);
+    color: var(--bat-yellow);
+    -webkit-text-stroke: 2px var(--bat-black);
+    text-shadow: 4px 4px 0 var(--bat-black);
+    margin-bottom: 12px;
+    line-height: 1.1;
+    transform: rotate(-2deg);
+  }
+  .invitation-text p {
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(16px, 3.5vw, 20px);
+    color: #fff;
+    line-height: 1.4;
+  }
+
+  /* ----- Botones de acción ----- */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 30px;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 22px;
+    background: var(--bat-yellow);
+    color: var(--bat-black);
+    text-decoration: none;
+    font-family: 'Bungee', cursive;
+    font-size: clamp(16px, 4vw, 20px);
+    letter-spacing: 1.5px;
+    border: 4px solid var(--bat-black);
+    box-shadow: 6px 6px 0 var(--bat-black);
+    transition: all .15s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn:hover, .btn:focus {
+    transform: translate(3px, 3px);
+    box-shadow: 3px 3px 0 var(--bat-black);
+  }
+  .btn:active {
+    transform: translate(6px, 6px);
+    box-shadow: 0 0 0 var(--bat-black);
+  }
+
+  .btn .btn-icon {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    background: var(--bat-black);
+    color: var(--bat-yellow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+
+  /* Botón CONFIRMAR — amarillo Batman (acción principal) */
+  .btn.whatsapp {
+    background: var(--bat-yellow);
+    color: var(--bat-black);
+    animation: pulseYellow 2s ease-in-out infinite;
+  }
+  .btn.whatsapp .btn-icon { background: var(--bat-black); color: var(--bat-yellow); }
+
+  @keyframes pulseYellow {
+    0%, 100% { box-shadow: 6px 6px 0 var(--bat-black), 0 0 0 rgba(255,217,0,0); }
+    50% { box-shadow: 6px 6px 0 var(--bat-black), 0 0 25px rgba(255,217,0,0.6); }
+  }
+
+  /* Botón UBICACIÓN — negro Gotham con detalle amarillo */
+  .btn.maps {
+    background: var(--bat-black);
+    color: var(--bat-yellow);
+    border-color: var(--bat-yellow);
+    box-shadow: 6px 6px 0 var(--bat-yellow);
+  }
+  .btn.maps .btn-icon { background: var(--bat-yellow); color: var(--bat-black); border: 2px solid var(--bat-yellow); }
+  .btn.maps:hover { box-shadow: 3px 3px 0 var(--bat-yellow); }
+  .btn.maps:active { box-shadow: 0 0 0 var(--bat-yellow); }
+
+  /* Botón CALENDARIO — rojo cómic estilo viñeta */
+  .btn.calendar {
+    background: var(--comic-red);
+    color: #fff;
+  }
+  .btn.calendar .btn-icon { background: #fff; color: var(--comic-red); }
+
+  /* ----- Footer ----- */
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+    font-family: 'Permanent Marker', cursive;
+    color: var(--bat-yellow);
+    font-size: 16px;
+    opacity: .8;
+  }
+  .footer .bat-logo {
+    width: 60px;
+    height: 30px;
+    margin: 10px auto;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><path fill='%23ffd900' d='M50 5c-3 8-9 12-18 12-6 0-11-2-15-5 2 6 4 11 8 14-4 0-8 0-12 2 6 4 13 6 20 8-5 2-8 6-10 11 7-4 13-5 19-4-2 5-3 10-3 16 5-5 9-9 14-11h2c5 2 9 6 14 11 0-6-1-11-3-16 6-1 12 0 19 4-2-5-5-9-10-11 7-2 14-4 20-8-4-2-8-2-12-2 4-3 6-8 8-14-4 3-9 5-15 5-9 0-15-4-18-12z'/></svg>") center/contain no-repeat;
+  }
+
+  /* Confeti al cargar */
+  .confetti {
+    position: fixed;
+    top: -10px;
+    width: 10px;
+    height: 10px;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  @media (max-width: 480px) {
+    .speech { font-size: 16px; padding: 8px 14px; }
+    .burst { font-size: 18px; padding: 10px 16px; }
+    .comic-panel { transform: rotate(0); box-shadow: 6px 6px 0 var(--bat-black); }
+    .comic-panel.tilt-r { transform: rotate(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="gotham-bg"></div>
+<div class="halftone"></div>
+<div class="bat-signal"></div>
+
+<div class="bat b1"></div>
+<div class="bat b2"></div>
+<div class="bat b3"></div>
+<div class="bat b4"></div>
+
+<div class="container">
+
+  <!-- Splash inicial -->
+  <div class="splash">
+    <div class="biff">¡ESTÁS INVITADO!</div>
+  </div>
+
+  <!-- Panel HERO con la foto del cumpleañero -->
+  <div class="comic-panel hero-panel">
+    <div class="burst pow">¡POW!</div>
+    <div class="photo-frame">
+      <div class="speech">¡VENÍ A MI FIESTA!</div>
+      <img src="giovanni.png" alt="Giovanni - el pequeño Batman" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(180deg,#1a2540,#0d1428)';">
+    </div>
+    <div class="hero-name">
+      <div class="name">GIOVANNI</div>
+      <div class="age">CUMPLE SU <span>1°</span> AÑITO</div>
+    </div>
+  </div>
+
+  <!-- Texto invitación -->
+  <div class="invitation-text">
+    <h2>¡CIUDAD GÓTICA ESTÁ DE FIESTA!</h2>
+    <p>El pequeño caballero de la noche cumple su primer año<br>y necesita a todos los héroes en su gran día</p>
+  </div>
+
+  <!-- Panel info evento -->
+  <div class="comic-panel tilt-r info-panel">
+    <div class="burst zap">¡ZAP!</div>
+
+    <div class="info-row">
+      <div class="info-icon">📅</div>
+      <div class="info-text">
+        <div class="label">FECHA</div>
+        <div class="value">Sábado 25 de Julio · 2026</div>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-icon">🕓</div>
+      <div class="info-text">
+        <div class="label">HORARIO</div>
+        <div class="value">16:00 a 19:45 hs</div>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-icon">🦇</div>
+      <div class="info-text">
+        <div class="label">BATCUEVA</div>
+        <div class="value">KHLOE MULTIEVENTOS</div>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-icon">📍</div>
+      <div class="info-text">
+        <div class="label">DIRECCIÓN</div>
+        <div class="value">Italia 1046<br>Comodoro Rivadavia, Chubut</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de acción -->
+  <div class="actions">
+    <a class="btn whatsapp"
+       href="https://wa.me/5492975447294?text=%C2%A1Hola!%20Confirmo%20mi%20asistencia%20al%20cumple%20de%20Giovanni%20%F0%9F%A6%87%F0%9F%8E%89"
+       target="_blank" rel="noopener">
+      <span class="btn-icon">✓</span>
+      <span>CONFIRMAR ASISTENCIA</span>
+    </a>
+
+    <a class="btn maps"
+       href="https://www.google.com/maps/place/Khloe+Multieventos/@-45.8593479,-67.4903823,17z/data=!3m1!4b1!4m6!3m5!1s0xbde4558ed9ddbb8f:0x198e5d2e8ebc5086!8m2!3d-45.8593479!4d-67.4878074!16s%2Fg%2F11y3d8g95y"
+       target="_blank" rel="noopener">
+      <span class="btn-icon">📍</span>
+      <span>VER UBICACIÓN</span>
+    </a>
+
+    <a class="btn calendar"
+       href="https://www.google.com/calendar/render?action=TEMPLATE&text=Cumple+1+a%C3%B1o+de+Giovanni+%F0%9F%A6%87&dates=20260725T190000Z/20260725T224500Z&details=%C2%A1Vol%C3%A1+a+Gotham!+El+pequeño+Batman+cumple+su+primer+a%C3%B1ito.+Te+esperamos+para+festejar.&location=Khloe+Multieventos%2C+Italia+1046%2C+Comodoro+Rivadavia%2C+Chubut"
+       target="_blank" rel="noopener">
+      <span class="btn-icon">📆</span>
+      <span>AGREGAR AL CALENDARIO</span>
+    </a>
+  </div>
+
+  <div class="footer">
+    <div class="bat-logo"></div>
+    Te esperamos en Ciudad Gótica
+  </div>
+
+</div>
+
+<script>
+  // Confeti amarillo y negro al cargar
+  function lanzarConfeti() {
+    const colores = ['#ffd900', '#0a0a0a', '#e63946', '#ffffff'];
+    for (let i = 0; i < 40; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colores[Math.floor(Math.random() * colores.length)];
+      c.style.transform = `rotate(${Math.random() * 360}deg)`;
+      c.style.animation = `confettiFall ${2 + Math.random() * 2}s ${Math.random() * 1.5}s ease-out forwards`;
+      if (Math.random() > 0.5) c.style.borderRadius = '50%';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 5000);
+    }
+  }
+
+  // Estilo dinámico para la caída
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes confettiFall {
+      0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+      100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  window.addEventListener('load', () => {
+    setTimeout(lanzarConfeti, 400);
+  });
+
+  // Confeti adicional al tocar el nombre
+  document.querySelector('.hero-name').addEventListener('click', lanzarConfeti);
+
+  // Sonido visual al pasar por los botones
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const spark = document.createElement('div');
+      spark.textContent = '⚡';
+      spark.style.cssText = `
+        position: fixed; top: 50%; left: 50%; font-size: 80px;
+        transform: translate(-50%,-50%); z-index: 999;
+        animation: sparkFade .6s ease-out forwards; pointer-events: none;
+      `;
+      document.body.appendChild(spark);
+      setTimeout(() => spark.remove(), 600);
+    });
+  });
+
+  const sparkStyle = document.createElement('style');
+  sparkStyle.textContent = `
+    @keyframes sparkFade {
+      0% { opacity: 1; transform: translate(-50%,-50%) scale(0); }
+      50% { opacity: 1; transform: translate(-50%,-50%) scale(1.5); }
+      100% { opacity: 0; transform: translate(-50%,-50%) scale(2.5); }
+    }
+  `;
+  document.head.appendChild(sparkStyle);
+</script>
+
+</body>
+</html>
