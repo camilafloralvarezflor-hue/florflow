@@ -222,9 +222,9 @@
 
     <div class="inputs" style="grid-template-columns: 1fr 1fr 1fr;">
       <div>
-        <label for="kmax">K de diseño (marcador en el LGR)</label>
+        <label for="kmax">K (ganancia de lazo)</label>
         <input type="number" id="kmax" value="100" min="0.1" step="0.1">
-        <small>El lugar de raíces siempre se calcula completo para K ∈ [0, ∞). Este valor solo ubica un marcador sobre las ramas.</small>
+        <small>Multiplica todo el lazo: Nyquist, Bode y márgenes se calculan para K·L(s). El LGR siempre se grafica completo para K ∈ [0, ∞); este valor solo ubica un marcador (◆) sobre las ramas.</small>
       </div>
       <div>
         <label for="wmin">ω mínimo (década, log₁₀)</label>
@@ -235,6 +235,8 @@
         <input type="number" id="wmax" value="3" step="1">
       </div>
     </div>
+
+    <div class="tf-display" id="kLoopDisplay" style="font-size:0.95rem;">K·L(s) = </div>
 
     <div class="controls">
       <button onclick="computeAll()">Calcular y graficar</button>
@@ -290,30 +292,30 @@
   <div class="grid">
     <div class="plot-card">
       <h3>Lugar de Raíces</h3>
-      <p class="hint">Polos del sistema en lazo cerrado al variar K ∈ [0, ∞). El marcador ◆ indica el K de diseño.</p>
+      <p class="hint">Polos del sistema en lazo cerrado al variar K ∈ [0, ∞). El marcador ◆ indica el K actual.</p>
       <div id="rlocus" class="plot"></div>
       <div class="stats" id="rlocusStats"></div>
     </div>
     <div class="plot-card">
       <h3>Diagrama de Nyquist</h3>
-      <p class="hint">G(jω) en el plano complejo, ω ∈ (-∞, ∞)</p>
+      <p class="hint">K·L(jω) en el plano complejo, ω ∈ (-∞, ∞). Encierra a −1+j0 ⇒ inestable en lazo cerrado.</p>
       <div id="nyquist" class="plot"></div>
     </div>
     <div class="plot-card">
       <h3>Bode — Magnitud</h3>
-      <p class="hint">|G(jω)| en dB vs frecuencia (rad/s)</p>
+      <p class="hint">|K·L(jω)| en dB vs frecuencia (rad/s)</p>
       <div id="bodeMag" class="plot"></div>
     </div>
     <div class="plot-card">
       <h3>Bode — Fase</h3>
-      <p class="hint">∠G(jω) en grados vs frecuencia (rad/s)</p>
+      <p class="hint">∠K·L(jω) en grados vs frecuencia (rad/s)</p>
       <div id="bodePhase" class="plot"></div>
     </div>
   </div>
 
   <section class="panel">
     <h2>Análisis asintótico de Bode</h2>
-    <p style="color:#6b7280; margin-top:0;">Aproximación asintótica (rectas) que detalla cada tramo del diagrama. Se usa el sistema actualmente graficado (compensado si hay compensador activo).</p>
+    <p style="color:#6b7280; margin-top:0;">Aproximación asintótica (rectas) que detalla cada tramo del diagrama. Se usa K·L(s): el sistema actualmente graficado (compensado si hay compensador activo, multiplicado por K).</p>
 
     <div class="stats" id="marginsStats"></div>
 
@@ -1355,13 +1357,13 @@ function computeFreqResponse(num, den, wMin, wMax) {
 function plotBode(main, original) {
   const magTraces = [{
     x: main.ws, y: main.mag, mode: 'lines', type: 'scatter',
-    name: original ? 'L(s) = C·G' : 'G(s)',
+    name: original ? 'K·L(s)' : 'K·G(s)',
     line: { color: '#2563eb', width: 2 },
     hovertemplate: 'ω: %{x:.3g} rad/s<br>|G|: %{y:.2f} dB<extra></extra>',
   }];
   const phaseTraces = [{
     x: main.ws, y: main.phase, mode: 'lines', type: 'scatter',
-    name: original ? 'L(s) = C·G' : 'G(s)',
+    name: original ? 'K·L(s)' : 'K·G(s)',
     line: { color: '#7c3aed', width: 2 },
     hovertemplate: 'ω: %{x:.3g} rad/s<br>∠G: %{y:.2f}°<extra></extra>',
   }];
@@ -1411,13 +1413,13 @@ function plotNyquist(main, original) {
   }
   traces.push({
     x: main.re, y: main.im, mode: 'lines', type: 'scatter',
-    name: (original ? 'L ' : '') + 'ω > 0',
+    name: 'K·L ω > 0',
     line: { color: '#2563eb', width: 2 },
     hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra></extra>',
   });
   traces.push({
     x: main.re, y: main.im.map(v => -v), mode: 'lines', type: 'scatter',
-    name: (original ? 'L ' : '') + 'ω < 0',
+    name: 'K·L ω < 0',
     line: { color: '#dc2626', width: 2, dash: 'dash' },
     hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra></extra>',
   });
@@ -1492,8 +1494,17 @@ function computeAll() {
         '</span><span class="den">' + polyToHtml(L.den) + '</span></span>';
     }
 
+    // Open-loop transfer function actually used for Nyquist/Bode/márgenes:
+    // K (el "K de diseño") multiplica al lazo completo, igual que en el LGR
+    // (char. eq. den + K·num = 0). Antes K solo movía el marcador del LGR y
+    // no afectaba Nyquist/Bode, por lo que variar K no cambiaba esos gráficos.
+    const Lk = { num: polyScale(L.num, Kmax), den: L.den };
+    document.getElementById('kLoopDisplay').innerHTML =
+      `K·L(s) con K = ${Kmax}: <span class="frac"><span class="num">` + polyToHtml(Lk.num) +
+      '</span><span class="den">' + polyToHtml(Lk.den) + '</span></span>';
+
     // Compute responses
-    const frL = computeFreqResponse(L.num, L.den, wMin, wMax);
+    const frL = computeFreqResponse(Lk.num, Lk.den, wMin, wMax);
     const showOrig = document.getElementById('showOriginal').checked && compType !== 'none';
     const frG = showOrig ? computeFreqResponse(numG, denG, wMin, wMax) : null;
 
@@ -1502,8 +1513,8 @@ function computeAll() {
     plotBode(frL, frG);
     plotNyquist({ re: frL.re, im: frL.im }, frG ? { re: frG.re, im: frG.im } : null);
 
-    // Analysis on the plotted (compensated) system
-    const analysis = analyzeSystem(L.num, L.den, frL);
+    // Analysis on the plotted (compensated, K-scaled) system
+    const analysis = analyzeSystem(Lk.num, Lk.den, frL);
     renderAnalysis(analysis);
   } catch (err) {
     showError(err.message);
