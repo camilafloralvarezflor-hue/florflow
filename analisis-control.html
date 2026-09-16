@@ -222,8 +222,9 @@
 
     <div class="inputs" style="grid-template-columns: 1fr 1fr 1fr;">
       <div>
-        <label for="kmax">K máximo (Lugar de raíces)</label>
+        <label for="kmax">K de diseño (marcador en el LGR)</label>
         <input type="number" id="kmax" value="100" min="0.1" step="0.1">
+        <small>El lugar de raíces siempre se calcula completo para K ∈ [0, ∞). Este valor solo ubica un marcador sobre las ramas.</small>
       </div>
       <div>
         <label for="wmin">ω mínimo (década, log₁₀)</label>
@@ -289,8 +290,9 @@
   <div class="grid">
     <div class="plot-card">
       <h3>Lugar de Raíces</h3>
-      <p class="hint">Polos del sistema en lazo cerrado al variar K ∈ [0, K<sub>max</sub>]</p>
+      <p class="hint">Polos del sistema en lazo cerrado al variar K ∈ [0, ∞). El marcador ◆ indica el K de diseño.</p>
       <div id="rlocus" class="plot"></div>
+      <div class="stats" id="rlocusStats"></div>
     </div>
     <div class="plot-card">
       <h3>Diagrama de Nyquist</h3>
@@ -417,6 +419,14 @@ function polyPow(p, n) {
   let r = [1];
   for (let i = 0; i < n; i++) r = polyMul(r, p);
   return r;
+}
+// Derivative of polynomial (array, highest degree first)
+function polyDeriv(p) {
+  const deg = p.length - 1;
+  if (deg <= 0) return [0];
+  const d = [];
+  for (let i = 0; i < deg; i++) d.push(p[i] * (deg - i));
+  return d;
 }
 
 // ============ Expression parser ============
@@ -972,33 +982,176 @@ const PLOT_CONFIG = {
   toImageButtonOptions: { format: 'png', scale: 2 },
 };
 
-function plotRootLocus(num, den, Kmax) {
-  // Characteristic eq: den(s) + K*num(s) = 0
-  const Kvals = [];
-  const steps = 400;
-  // Log spacing from small K to Kmax
-  for (let i = 0; i <= steps; i++) {
-    Kvals.push(Kmax * i / steps);
+// Estimate a K value large enough that: (a) branches heading to infinity are
+// clearly travelling along their asymptotes, and (b) branches heading to a
+// finite zero have visibly converged to it. This decouples "seeing the whole
+// picture" from the user-entered design K.
+function estimateAutoKUpper(num, den, poles, zeros) {
+  const n = den.length - 1, m = num.length - 1;
+  const mags = [...poles, ...zeros].map(p => Math.hypot(p.re, p.im)).filter(v => v > 1e-9);
+  const scale = Math.max(1, ...mags);
+  const candidates = [10];
+  if (n > m) {
+    const Rtarget = Math.max(50 * scale, 100);
+    const ratio = Math.abs(den[0] / num[0]);
+    candidates.push(ratio * Math.pow(Rtarget, n - m));
   }
-  // Also add some log-spaced small values
-  const small = [];
-  for (let i = 1; i <= 50; i++) small.push(Kmax * Math.pow(10, -4 + 4 * i / 50));
-  const allK = [...new Set([...small, ...Kvals])].sort((a, b) => a - b);
+  const eps = 0.01;
+  const Nprime = polyDeriv(num);
+  for (const z of zeros) {
+    const Dz = C.abs(polyEvalC(den, z));
+    const Npz = C.abs(polyEvalC(Nprime, z));
+    if (Npz > 1e-9) candidates.push((Dz / Npz) / (eps * scale));
+  }
+  return Math.min(Math.max(Math.max(...candidates), 10), 1e9);
+}
 
-  // Open loop poles (K=0): roots of den
+// K(s) = -D(s)/N(s) evaluated at a real s (real-axis locus test / breakaway search)
+function realAxisK(num, den, x) {
+  const D = polyEvalC(den, { re: x, im: 0 }).re;
+  const N = polyEvalC(num, { re: x, im: 0 }).re;
+  if (Math.abs(N) < 1e-12) return NaN;
+  return -D / N;
+}
+
+// Open real-axis intervals between real critical points (poles/zeros) that
+// belong to the K>0 locus, tested directly via K(s) > 0 (sign-convention safe).
+function realAxisSegments(num, den, poles, zeros) {
+  const tol = 1e-6;
+  const pts = new Set();
+  for (const p of poles) if (Math.abs(p.im) < tol) pts.add(p.re);
+  for (const z of zeros) if (Math.abs(z.im) < tol) pts.add(z.re);
+  const sorted = [...pts].sort((a, b) => a - b);
+  const segs = [];
+  for (let i = -1; i < sorted.length; i++) {
+    const lo = i === -1 ? -Infinity : sorted[i];
+    const hi = i + 1 < sorted.length ? sorted[i + 1] : Infinity;
+    const mid = !isFinite(lo) && !isFinite(hi) ? 0
+      : !isFinite(lo) ? hi - Math.max(10, Math.abs(hi))
+      : !isFinite(hi) ? lo + Math.max(10, Math.abs(lo))
+      : (lo + hi) / 2;
+    if (realAxisK(num, den, mid) > 0) segs.push({ lo, hi });
+  }
+  return segs;
+}
+
+// Breakaway / break-in points: local extrema of K(s) along real-axis locus segments
+function findBreakpoints(num, den, poles, zeros) {
+  const segs = realAxisSegments(num, den, poles, zeros);
+  const results = [];
+  for (const seg of segs) {
+    if (!isFinite(seg.lo) || !isFinite(seg.hi)) continue; // unbounded rays: no breakaway
+    const N = 400;
+    const xs = [];
+    for (let i = 0; i <= N; i++) xs.push(seg.lo + (seg.hi - seg.lo) * i / N);
+    const Ks = xs.map(x => realAxisK(num, den, x));
+    for (let i = 1; i < Ks.length - 1; i++) {
+      const risingBefore = Ks[i] - Ks[i - 1] > 0;
+      const risingAfter = Ks[i + 1] - Ks[i] > 0;
+      if (risingBefore === risingAfter) continue;
+      let a = xs[i - 1], b = xs[i + 1];
+      for (let it = 0; it < 50; it++) {
+        const m1 = a + (b - a) / 3, m2 = b - (b - a) / 3;
+        if (risingBefore) { if (realAxisK(num, den, m1) < realAxisK(num, den, m2)) a = m1; else b = m2; }
+        else { if (realAxisK(num, den, m1) > realAxisK(num, den, m2)) a = m1; else b = m2; }
+      }
+      const xstar = (a + b) / 2;
+      const Kstar = realAxisK(num, den, xstar);
+      // Skip spurious extrema from near-singular sampling right next to a
+      // segment boundary (a pole/zero), which aren't meaningful breakaway points.
+      const nearBoundary = Math.min(Math.abs(xstar - seg.lo), Math.abs(xstar - seg.hi)) < (seg.hi - seg.lo) * 1e-3;
+      if (isFinite(Kstar) && !nearBoundary) results.push({ s: xstar, K: Kstar });
+    }
+  }
+  return results;
+}
+
+// jω-axis crossings: K values where the closed-loop system transitions between
+// stable/unstable (max Re(root) changes sign). Returns crossings sorted by K,
+// each with the crossing frequency, plus whether the system starts stable at K→0+.
+function findJwCrossings(num, den, KUpper, scale) {
+  const maxRe = (K) => {
+    const cp = polyAdd(den, polyScale(num, K));
+    const roots = polyRoots([...cp]);
+    return roots.reduce((m, r) => Math.max(m, r.re), -Infinity);
+  };
+  const logMin = Math.log10(Math.max(scale * 1e-4, 1e-8));
+  const logMax = Math.log10(KUpper);
+  const steps = 500;
+  let prev = null;
+  const crossings = [];
+  let startStable = null;
+  for (let i = 0; i <= steps; i++) {
+    const K = Math.pow(10, logMin + (logMax - logMin) * i / steps);
+    const f = maxRe(K);
+    if (startStable === null) startStable = f < 0;
+    if (prev && ((prev.f >= 0) !== (f >= 0))) {
+      let lo = prev.K, hi = K, flo = prev.f;
+      for (let it = 0; it < 60; it++) {
+        const mid = Math.sqrt(lo * hi);
+        const fm = maxRe(mid);
+        if ((fm >= 0) === (flo >= 0)) { lo = mid; flo = fm; } else hi = mid;
+      }
+      const Kc = Math.sqrt(lo * hi);
+      const cp = polyAdd(den, polyScale(num, Kc));
+      const roots = polyRoots([...cp]);
+      const worst = roots.reduce((a, b) => Math.abs(a.re) < Math.abs(b.re) ? a : b);
+      crossings.push({ K: Kc, omega: Math.abs(worst.im) });
+    }
+    prev = { K, f };
+  }
+  return { crossings, startStable: startStable === null ? true : startStable };
+}
+
+// Asymptotes: centroid (sign-convention independent) and angles (sign-aware,
+// derived directly from the angle condition using num/den exactly as given).
+function computeAsymptotes(num, den, poles, zeros) {
+  const n = den.length - 1, m = num.length - 1;
+  if (n <= m) return { count: 0, centroid: null, angles: [] };
+  const sumP = poles.reduce((s, p) => s + p.re, 0);
+  const sumZ = zeros.reduce((s, z) => s + z.re, 0);
+  const centroid = (sumP - sumZ) / (n - m);
+  const angNlead = num[0] >= 0 ? 0 : 180;
+  const angDlead = den[0] >= 0 ? 0 : 180;
+  const angles = [];
+  for (let k = 0; k < n - m; k++) {
+    let theta = (180 + angDlead - angNlead + 360 * k) / (n - m);
+    theta = ((theta % 360) + 360) % 360;
+    if (theta > 180) theta -= 360;
+    angles.push(theta);
+  }
+  return { count: n - m, centroid, angles };
+}
+
+function plotRootLocus(num, den, Kmax) {
   const olPoles = polyRoots([...den]);
-  // Open loop zeros: roots of num
   const olZeros = num.length > 1 ? polyRoots([...num]) : [];
-
-  const branches = []; // array of {re:[], im:[]} per branch
   const nBranches = den.length - 1;
+
+  const mags = [...olPoles, ...olZeros].map(p => Math.hypot(p.re, p.im)).filter(v => v > 1e-9);
+  const scale = Math.max(1, ...mags);
+
+  const KUpper = estimateAutoKUpper(num, den, olPoles, olZeros);
+  const breakpoints = findBreakpoints(num, den, olPoles, olZeros);
+  const { crossings, startStable } = findJwCrossings(num, den, KUpper, scale);
+  const asym = computeAsymptotes(num, den, olPoles, olZeros);
+
+  // K sampling: dense log spacing covering from a small fraction of the
+  // problem's natural scale up to KUpper, so both near-origin departure
+  // behaviour and far-field convergence/asymptotes are resolved.
+  const logMin = Math.log10(Math.max(scale * 1e-4, 1e-8));
+  const logMax = Math.log10(KUpper);
+  const steps = 700;
+  const allK = [0];
+  for (let i = 0; i <= steps; i++) allK.push(Math.pow(10, logMin + (logMax - logMin) * i / steps));
+
+  const branches = [];
   for (let b = 0; b < nBranches; b++) branches.push({ re: [], im: [] });
 
-  let prevRoots = polyRoots([...den]);
+  let prevRoots = olPoles;
   for (const K of allK) {
     const charPoly = polyAdd(den, polyScale(num, K));
-    let roots = polyRoots([...charPoly]);
-    // Match roots to previous to keep branches continuous (greedy nearest)
+    const roots = polyRoots([...charPoly]);
     const matched = new Array(roots.length).fill(false);
     const ordered = [];
     for (const pr of prevRoots) {
@@ -1017,13 +1170,81 @@ function plotRootLocus(num, den, Kmax) {
     prevRoots = ordered;
   }
 
+  // Closed-loop poles at the user-specified design K (exact, independent of the sweep)
+  const designRoots = polyRoots([...polyAdd(den, polyScale(num, Kmax))]);
+
+  // ---- View window: fit the "interesting" finite features, not the far tails ----
+  const featurePts = [
+    ...olPoles, ...olZeros,
+    ...breakpoints.map(b => ({ re: b.s, im: 0 })),
+    ...crossings.flatMap(c => [{ re: 0, im: c.omega }, { re: 0, im: -c.omega }]),
+  ];
+  if (asym.centroid !== null) featurePts.push({ re: asym.centroid, im: 0 });
+  let minX = Math.min(...featurePts.map(p => p.re), -1), maxX = Math.max(...featurePts.map(p => p.re), 1);
+  let minY = Math.min(...featurePts.map(p => p.im), -1), maxY = Math.max(...featurePts.map(p => p.im), 1);
+  const spanNatural = Math.max(maxX - minX, maxY - minY, 2);
+  // Include the design-K marker in the window only if it doesn't blow it up too much
+  for (const r of designRoots) {
+    if (Math.abs(r.re - (minX + maxX) / 2) < spanNatural * 3 && Math.abs(r.im) < spanNatural * 3) {
+      minX = Math.min(minX, r.re); maxX = Math.max(maxX, r.re);
+      minY = Math.min(minY, r.im); maxY = Math.max(maxY, r.im);
+    }
+  }
+  const pad = Math.max(3, 0.35 * Math.max(maxX - minX, maxY - minY, 2));
+  const xRange = [minX - pad, maxX + pad];
+  const yHalf = Math.max(Math.max(maxY, -minY) + pad, (xRange[1] - xRange[0]) / 2);
+  const yRange = [-yHalf, yHalf];
+
+  const palette = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#db2777', '#0891b2'];
   const traces = branches.map((br, i) => ({
     x: br.re, y: br.im,
     mode: 'lines', type: 'scatter',
     name: 'Rama ' + (i + 1),
-    line: { width: 2 },
-    hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra></extra>',
+    line: { width: 2, color: palette[i % palette.length] },
+    hovertemplate: 'Re: %{x:.3f}<br>Im: %{y:.3f}<extra>Rama ' + (i + 1) + '</extra>',
   }));
+
+  // Asymptote guide lines (dashed rays from the centroid)
+  if (asym.count > 0) {
+    const rayLen = 2 * Math.max(xRange[1] - xRange[0], yRange[1] - yRange[0]);
+    for (const theta of asym.angles) {
+      const rad = theta * Math.PI / 180;
+      traces.push({
+        x: [asym.centroid, asym.centroid + rayLen * Math.cos(rad)],
+        y: [0, rayLen * Math.sin(rad)],
+        mode: 'lines', type: 'scatter', name: 'Asíntota',
+        line: { width: 1.5, dash: 'dot', color: '#9ca3af' },
+        hoverinfo: 'skip', showlegend: false,
+      });
+    }
+    traces.push({
+      x: [asym.centroid], y: [0], mode: 'markers', type: 'scatter', name: 'Centroide asíntotas',
+      marker: { symbol: 'cross-thin', size: 10, color: '#6b7280', line: { width: 2 } },
+      hovertemplate: 'Centroide σₐ = %{x:.3f}<extra></extra>',
+    });
+  }
+
+  if (breakpoints.length) {
+    traces.push({
+      x: breakpoints.map(b => b.s), y: breakpoints.map(() => 0),
+      mode: 'markers', type: 'scatter', name: 'Ruptura/reingreso',
+      marker: { symbol: 'diamond', size: 10, color: '#f59e0b', line: { width: 1.5, color: '#92400e' } },
+      text: breakpoints.map(b => `K = ${b.K.toFixed(3)}`),
+      hovertemplate: 's = %{x:.3f}<br>%{text}<extra>Ruptura/reingreso</extra>',
+    });
+  }
+
+  if (crossings.length) {
+    const cx = crossings.flatMap(c => [0, 0]);
+    const cy = crossings.flatMap(c => [c.omega, -c.omega]);
+    const ck = crossings.flatMap(c => [`K = ${c.K.toFixed(3)}`, `K = ${c.K.toFixed(3)}`]);
+    traces.push({
+      x: cx, y: cy, mode: 'markers', type: 'scatter', name: 'Cruce eje jω',
+      marker: { symbol: 'triangle-up', size: 11, color: '#dc2626', line: { width: 1.5, color: '#7f1d1d' } },
+      text: ck,
+      hovertemplate: 'ω = %{y:.3f}<br>%{text}<extra>Cruce eje jω</extra>',
+    });
+  }
 
   traces.push({
     x: olPoles.map(p => p.re), y: olPoles.map(p => p.im),
@@ -1038,13 +1259,68 @@ function plotRootLocus(num, den, Kmax) {
     });
   }
 
+  traces.push({
+    x: designRoots.map(r => r.re), y: designRoots.map(r => r.im),
+    mode: 'markers', type: 'scatter', name: `Polos en K = ${Kmax}`,
+    marker: { symbol: 'diamond', size: 11, color: '#111827', line: { width: 1.5, color: '#ffffff' } },
+    hovertemplate: `K = ${Kmax}` + '<br>s = %{x:.3f} %{customdata}<extra></extra>',
+    customdata: designRoots.map(r => (r.im >= 0 ? '+ ' : '− ') + Math.abs(r.im).toFixed(3) + 'j'),
+  });
+
   Plotly.newPlot('rlocus', traces, {
     margin: { t: 20, r: 10, b: 40, l: 50 },
-    xaxis: { title: 'Re(s)', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb' },
-    yaxis: { title: 'Im(s)', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb', scaleanchor: 'x' },
+    xaxis: { title: 'Re(s)', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb', range: xRange },
+    yaxis: { title: 'Im(s)', zeroline: true, zerolinecolor: '#9ca3af', gridcolor: '#e5e7eb', scaleanchor: 'x', range: yRange },
     showlegend: false,
     hovermode: 'closest',
   }, PLOT_CONFIG);
+
+  renderRootLocusStats({ num, den, poles: olPoles, zeros: olZeros, asym, breakpoints, crossings, startStable, Kmax, designRoots });
+}
+
+function renderRootLocusStats({ num, den, poles, zeros, asym, breakpoints, crossings, startStable, Kmax, designRoots }) {
+  const n = den.length - 1, m = num.length - 1;
+  const stats = [];
+  stats.push({ label: 'Polos / Ceros', val: `${n} / ${m}` });
+  stats.push({ label: 'Ramas al infinito', val: asym.count });
+  if (asym.count > 0) {
+    stats.push({ label: 'Centroide asíntotas σₐ', val: fmt(asym.centroid, 3) });
+    stats.push({ label: 'Ángulos de asíntota', val: asym.angles.map(a => fmt(a, 1) + '°').join(', ') });
+  }
+  stats.push({
+    label: 'Ruptura / reingreso',
+    val: breakpoints.length ? breakpoints.map(b => `s=${fmt(b.s, 2)} (K=${fmt(b.K, 2)})`).join('; ') : 'Ninguno',
+  });
+
+  // Build stability range string from crossings + startStable
+  let stabilityStr, stabilityClass;
+  if (!crossings.length) {
+    stabilityStr = startStable ? 'Estable para todo K > 0' : 'Inestable para todo K > 0';
+    stabilityClass = startStable ? 'good' : 'bad';
+  } else {
+    const bounds = [0, ...crossings.map(c => c.K), Infinity];
+    const intervals = [];
+    let stableNow = startStable;
+    for (let i = 0; i < bounds.length - 1; i++) {
+      if (stableNow) {
+        const lo = fmt(bounds[i], 3);
+        const hi = bounds[i + 1] === Infinity ? '∞' : fmt(bounds[i + 1], 3);
+        intervals.push(`(${lo}, ${hi})`);
+      }
+      stableNow = !stableNow;
+    }
+    stabilityStr = intervals.length ? 'K ∈ ' + intervals.join(' ∪ ') : 'Inestable para todo K > 0';
+    stabilityClass = intervals.length ? 'good' : 'bad';
+  }
+  stats.push({ label: 'Rango de K estable', val: stabilityStr, cls: stabilityClass });
+  if (crossings.length) {
+    stats.push({ label: 'Cruce(s) eje jω', val: crossings.map(c => `K=${fmt(c.K, 3)} (ω=${fmt(c.omega, 3)})`).join('; ') });
+  }
+  const dStr = designRoots.map(r => `${fmt(r.re, 2)}${r.im >= 0 ? '+' : '−'}${fmt(Math.abs(r.im), 2)}j`).join(', ');
+  stats.push({ label: `Polos en K = ${Kmax}`, val: dStr });
+
+  document.getElementById('rlocusStats').innerHTML =
+    stats.map(s => `<div class="stat ${s.cls || ''}"><div class="label">${s.label}</div><div class="value" style="font-size:0.95rem;">${s.val}</div></div>`).join('');
 }
 
 function computeFreqResponse(num, den, wMin, wMax) {
